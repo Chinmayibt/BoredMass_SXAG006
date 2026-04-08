@@ -9,3 +9,13 @@ numpy
 scikit-learn
 sentence-transformers
 fpdf2
+langgraph
+langchain-core
+langchain-groq
+faiss-cpu
+neo4j
+pymupdf
+pdfplumber
+pillow
+boto3
+pytest

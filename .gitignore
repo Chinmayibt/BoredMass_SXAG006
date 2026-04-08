@@ -2,6 +2,9 @@ __pycache__/
 *.pyc
 .env
 backend/.env
+backend/.venv/
 frontend/node_modules/
 frontend/dist/
 backend/reports/
+reports/
+debug-*.log

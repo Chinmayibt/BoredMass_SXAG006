@@ -1,34 +1,62 @@
 import React from "react";
+import { Insights } from "../services/api";
 
 type Props = {
-  insights?: {
-    trends: string[];
-    gaps: string[];
-    contradictions: string[];
-    key_papers: Array<{ title: string; why_important: string; url: string }>;
-  };
+  insights?: Insights;
 };
 
 export default function InsightPanel({ insights }: Props) {
-  if (!insights) return <div className="card">Run research to view insights.</div>;
+  if (!insights) {
+    return (
+      <div className="card">
+        <h3>Insights</h3>
+        <p className="muted">Run research to view trends, gaps, and key papers.</p>
+      </div>
+    );
+  }
+
+  const sections = [
+    { label: "Trends", items: insights.trends },
+    { label: "Research gaps", items: insights.gaps },
+    { label: "Contradictions", items: insights.contradictions },
+  ];
 
   return (
     <div className="card">
       <h3>Insights</h3>
-      <p><strong>Trends</strong></p>
-      <ul>{insights.trends.map((x, i) => <li key={`t-${i}`}>{x}</li>)}</ul>
-      <p><strong>Research Gaps</strong></p>
-      <ul>{insights.gaps.map((x, i) => <li key={`g-${i}`}>{x}</li>)}</ul>
-      <p><strong>Key Papers</strong></p>
-      <ul>
-        {insights.key_papers.map((k, i) => (
-          <li key={`k-${i}`}>
-            <a href={k.url} target="_blank" rel="noreferrer">{k.title}</a> - {k.why_important}
-          </li>
+      <div className="insight-grid">
+        {sections.map((section) => (
+          <section key={section.label} className="insight-block">
+            <h4>{section.label}</h4>
+            {!section.items.length ? (
+              <p className="muted">No items</p>
+            ) : (
+              <ul>
+                {section.items.map((item, i) => (
+                  <li key={`${section.label}-${i}`}>{item}</li>
+                ))}
+              </ul>
+            )}
+          </section>
         ))}
-      </ul>
-      <p><strong>Contradictions (Experimental)</strong></p>
-      <ul>{insights.contradictions.map((x, i) => <li key={`c-${i}`}>{x}</li>)}</ul>
+      </div>
+      <section className="insight-block">
+        <h4>Key papers</h4>
+        {!insights.key_papers.length ? (
+          <p className="muted">No highlighted papers yet.</p>
+        ) : (
+          <ul>
+            {insights.key_papers.map((paper, i) => (
+              <li key={`paper-${i}`}>
+                <a href={paper.url} target="_blank" rel="noreferrer">
+                  {paper.title}
+                </a>
+                <p className="muted">{paper.why_important}</p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </div>
   );
 }

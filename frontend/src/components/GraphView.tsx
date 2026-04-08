@@ -1,10 +1,11 @@
 import React from "react";
 import ReactFlow, { Background, Controls } from "reactflow";
 import "reactflow/dist/style.css";
+import { GraphEdge, GraphNode } from "../services/api";
 
 type Props = {
-  nodes: Array<{ id: string; label: string; cluster: number }>;
-  edges: Array<{ source: string; target: string; edge_type: string }>;
+  nodes: GraphNode[];
+  edges: GraphEdge[];
 };
 
 function colorForCluster(cluster: number): string {
@@ -13,11 +14,26 @@ function colorForCluster(cluster: number): string {
 }
 
 export default function GraphView({ nodes, edges }: Props) {
+  if (!nodes.length) {
+    return (
+      <div className="graph-empty">
+        <p className="muted">No graph data yet. Run research to generate a knowledge graph.</p>
+      </div>
+    );
+  }
+
   const flowNodes = nodes.map((n, i) => ({
     id: n.id,
     data: { label: n.label },
     position: { x: (i % 8) * 220, y: Math.floor(i / 8) * 120 },
-    style: { border: `2px solid ${colorForCluster(n.cluster)}`, borderRadius: 8, padding: 6, width: 180 },
+    style: {
+      border: `2px solid ${colorForCluster(n.cluster)}`,
+      borderRadius: 12,
+      padding: 8,
+      width: 200,
+      fontSize: 12,
+      background: "#ffffff",
+    },
   }));
   const flowEdges = edges.map((e, i) => ({
     id: `e-${i}-${e.source}-${e.target}`,
@@ -27,9 +43,13 @@ export default function GraphView({ nodes, edges }: Props) {
   }));
 
   return (
-    <div style={{ height: 450, border: "1px solid #ddd", borderRadius: 10 }}>
+    <div className="graph-wrap">
+      <div className="graph-header">
+        <h4>Knowledge Graph</h4>
+        <p className="muted">Nodes are clustered by semantic similarity.</p>
+      </div>
       <ReactFlow nodes={flowNodes} edges={flowEdges} fitView>
-        <Background />
+        <Background gap={18} />
         <Controls />
       </ReactFlow>
     </div>
