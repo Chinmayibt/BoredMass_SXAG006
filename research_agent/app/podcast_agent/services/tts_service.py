@@ -34,7 +34,8 @@ async def generate_voice(text, voice, output_file):
 
 
 # 🔥 THIS MUST EXIST (YOUR ERROR IS HERE)
-async def generate_audio(dialogues):
+async def generate_audio(dialogues, work_dir: str = "."):
+    os.makedirs(work_dir, exist_ok=True)
     audio_files = []
 
     for i, (speaker, text) in enumerate(dialogues):
@@ -44,7 +45,7 @@ async def generate_audio(dialogues):
         else:
             voice = "en-US-JennyNeural"
 
-        filename = f"line_{i}.mp3"
+        filename = os.path.join(work_dir, f"line_{i}.mp3")
 
         print(f"🎙️ Generating: {filename}")
 

@@ -11,13 +11,24 @@ from app.podcast_agent.services.tts_service import generate_audio
 from app.podcast_agent.services.audio_service import merge_audio
 import glob, os
 
-async def run_podcast_pipeline(pdf_path: str) -> dict:
+async def run_podcast_pipeline(pdf_path: str, work_dir: str = ".") -> dict:
     """
     Main orchestrator for podcast generation pipeline.
     Executes full flow from PDF → Podcast MP3.
+    All line_*.mp3, inputs.txt, and podcast.mp3 are written under work_dir.
     """
-    for f in glob.glob("line_*.mp3"):
+    work_dir = os.path.abspath(work_dir)
+    os.makedirs(work_dir, exist_ok=True)
+
+    for f in glob.glob(os.path.join(work_dir, "line_*.mp3")):
         os.remove(f)
+
+    inputs_glob = os.path.join(work_dir, "inputs.txt")
+    if os.path.isfile(inputs_glob):
+        os.remove(inputs_glob)
+    podcast_path = os.path.join(work_dir, "podcast.mp3")
+    if os.path.isfile(podcast_path):
+        os.remove(podcast_path)
 
     print("🧹 Old audio files cleared")
 
@@ -122,7 +133,7 @@ async def run_podcast_pipeline(pdf_path: str) -> dict:
         # 10. Generate Audio (Async TTS)
         # -------------------------------
         print("⏳ Step 8: Generating audio...")
-        audio_files = await generate_audio(dialogues)
+        audio_files = await generate_audio(dialogues, work_dir=work_dir)
         print("✅ Audio generated")
 
         # -------------------------------
@@ -130,7 +141,7 @@ async def run_podcast_pipeline(pdf_path: str) -> dict:
         # -------------------------------
         print("⏳ Step 9: Merging audio...")
         print("🎧 Audio files returned:", audio_files)
-        final_audio_path = merge_audio(audio_files)
+        final_audio_path = merge_audio(audio_files, work_dir=work_dir)
         print("✅ Merge done")
 
         # -------------------------------

@@ -1,3 +1,5 @@
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -22,7 +24,9 @@ def health() -> dict[str, str]:
 
 @app.on_event("startup")
 def startup_warmup() -> None:
-    warmup_embeddings_model()
+    skip = os.getenv("SKIP_EMBEDDING_WARMUP", "").strip().lower() in ("1", "true", "yes")
+    if not skip:
+        warmup_embeddings_model()
 
 
 app.include_router(research_router)

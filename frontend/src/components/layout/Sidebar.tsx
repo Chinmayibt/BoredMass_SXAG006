@@ -7,6 +7,12 @@ const navItems = [
   { label: "Settings", to: "/settings" },
 ];
 
+const agentNavItems = [
+  { label: "Debate agent", to: "/debate" },
+  { label: "Roadmap agent", to: "/roadmap" },
+  { label: "Podcast agent", to: "/podcast" },
+];
+
 type SidebarProps = {
   active?: string;
 };
@@ -32,6 +38,18 @@ export default function Sidebar({ active = "Home" }: SidebarProps) {
             {item.label}
           </NavLink>
         ))}
+        <div className="sidebar-nav-section" role="group" aria-label="Research agents">
+          <p className="nav-section-label">Agents</p>
+          {agentNavItems.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              className={({ isActive }) => `nav-item ${isActive || active === item.label ? "active" : ""}`}
+            >
+              {item.label}
+            </NavLink>
+          ))}
+        </div>
       </nav>
 
       <div className="sidebar-footer">

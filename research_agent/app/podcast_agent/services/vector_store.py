@@ -1,10 +1,8 @@
 import faiss
 import numpy as np
 from typing import List
-from sentence_transformers import SentenceTransformer
 
-# ✅ LOAD ONCE (GLOBAL)
-_model = SentenceTransformer("all-MiniLM-L6-v2")
+from app.podcast_agent.services.embedding_service import get_model
 
 
 def build_index(embeddings: np.ndarray):
@@ -15,10 +13,11 @@ def build_index(embeddings: np.ndarray):
 
 
 def search(query: str, chunks: List[str], index, top_k: int = 4) -> List[str]:
-    query_embedding = _model.encode(
+    model = get_model()
+    query_embedding = model.encode(
         [query],
         convert_to_numpy=True,
-        normalize_embeddings=True
+        normalize_embeddings=True,
     )
 
     scores, indices = index.search(query_embedding, top_k)
