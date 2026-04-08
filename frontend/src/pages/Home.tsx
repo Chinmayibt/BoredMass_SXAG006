@@ -1,198 +1,137 @@
-import React, { useMemo, useState } from "react";
-import GraphView from "../components/GraphView";
+import React, { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import CommandActions from "../components/workspace/CommandActions";
+import ExecutionLogSection from "../components/workspace/ExecutionLogSection";
+import GraphSection from "../components/workspace/GraphSection";
 import InsightPanel from "../components/InsightPanel";
+import LiveMetricsStrip from "../components/workspace/LiveMetricsStrip";
 import PaperTable from "../components/PaperTable";
+import ReportSection from "../components/workspace/ReportSection";
 import RightPanel from "../components/layout/RightPanel";
 import Topbar from "../components/layout/Topbar";
-import { PipelineEvent, reportUrl, RunResearchResponse, runResearch } from "../services/api";
+import WorkspaceTabs, { WorkspaceTabId } from "../components/workspace/WorkspaceTabs";
+import { useMediaQuery } from "../hooks/useMediaQuery";
+import { useResearchRun } from "../hooks/useResearchRun";
+import { reportUrl } from "../services/api";
+
+function validTab(t: string | null): WorkspaceTabId {
+  const allowed: WorkspaceTabId[] = ["overview", "sources", "graph", "report"];
+  return allowed.includes(t as WorkspaceTabId) ? (t as WorkspaceTabId) : "overview";
+}
 
 export default function Home() {
-  const [topic, setTopic] = useState("retrieval augmented generation");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [data, setData] = useState<RunResearchResponse | null>(null);
-  const [events, setEvents] = useState<PipelineEvent[]>([]);
-  const [stage, setStage] = useState("idle");
-  const [sourcesAnalyzed, setSourcesAnalyzed] = useState(0);
-  const [confidence, setConfidence] = useState("n/a");
+  const [searchParams, setSearchParams] = useSearchParams();
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const narrowRail = useMediaQuery("(max-width: 1280px)");
 
-  const canSubmit = !loading && topic.trim().length >= 3;
+  const {
+    topic,
+    setTopic,
+    loading,
+    error,
+    data,
+    events,
+    stage,
+    sourcesAnalyzed,
+    confidence,
+    submit,
+    loadJob,
+  } = useResearchRun("retrieval augmented generation");
 
-  const relatedPapers = useMemo(() => {
-    if (!selectedNode || !data) {
-      return [];
-    }
-    const neighborIds = new Set<string>([selectedNode]);
-    for (const edge of data.graph_edges) {
-      if (edge.source === selectedNode) neighborIds.add(edge.target);
-      if (edge.target === selectedNode) neighborIds.add(edge.source);
-    }
-    return data.papers.filter((paper) => neighborIds.has(paper.id)).slice(0, 6);
-  }, [selectedNode, data]);
+  const tab = validTab(searchParams.get("tab"));
 
-  const reportPreview = useMemo(() => {
-    if (!data?.report_markdown) {
-      return { abstract: "", findings: "", methods: "" };
-    }
-    const markdown = data.report_markdown;
-    const abstractMatch = markdown.match(/##\s*Abstract([\s\S]*?)(##|$)/i);
-    const findingsMatch = markdown.match(/##\s*(Key findings|Trends)([\s\S]*?)(##|$)/i);
-    const methodsMatch = markdown.match(/##\s*(Methodology|Methods)([\s\S]*?)(##|$)/i);
-    return {
-      abstract: (abstractMatch?.[1] ?? markdown.slice(0, 280)).trim(),
-      findings: (findingsMatch?.[2] ?? "").trim(),
-      methods: (methodsMatch?.[2] ?? "").trim(),
-    };
-  }, [data?.report_markdown]);
-
-  const submit = async () => {
-    setLoading(true);
-    setError("");
-    setEvents([]);
-    setStage("queued");
-    setSourcesAnalyzed(0);
-    setConfidence("n/a");
-    try {
-      const result = await runResearch(
-        { topic },
-        {
-          onEvent: (evt) => {
-            setEvents((prev) => [...prev, evt]);
-            setStage(evt.stage || "running");
-            const sourceCount = Number(evt.meta?.sources_analyzed);
-            if (!Number.isNaN(sourceCount) && sourceCount > 0) {
-              setSourcesAnalyzed(sourceCount);
-            }
-          },
-          onProgress: (progress) => {
-            if (progress.stage) setStage(progress.stage);
-            if (progress.sources_analyzed) setSourcesAnalyzed(Number(progress.sources_analyzed) || 0);
-            if (progress.confidence) setConfidence(progress.confidence);
-          },
-        }
-      );
-      setData(result);
-      setStage("completed");
-      setSourcesAnalyzed(result.papers.length);
-      window.localStorage.setItem(
-        "researchReports",
-        JSON.stringify([
-          { jobId: result.job_id, topic: result.topic, finishedAt: new Date().toISOString() },
-          ...JSON.parse(window.localStorage.getItem("researchReports") ?? "[]"),
-        ].slice(0, 40))
-      );
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Failed to run research");
-    } finally {
-      setLoading(false);
-    }
+  const setTab = (id: WorkspaceTabId) => {
+    setSearchParams(
+      (prev) => {
+        const p = new URLSearchParams(prev);
+        p.set("tab", id);
+        return p;
+      },
+      { replace: true }
+    );
   };
+
+  const jobIdParam = searchParams.get("jobId");
+  useEffect(() => {
+    if (!jobIdParam) return;
+    void loadJob(jobIdParam);
+  }, [jobIdParam, loadJob]);
+
+  const reportHref = data?.job_id ? reportUrl(data.job_id) : null;
+  const metricSources = sourcesAnalyzed || data?.papers.length || 0;
 
   return (
     <>
-      <main className="workspace">
-        <Topbar
-          topic={topic}
-          onTopicChange={setTopic}
-          onSubmit={submit}
-          loading={loading}
-          canSubmit={canSubmit}
-        />
+      <main className={`workspace page-home ${!data && !loading ? "page-home--empty" : ""}`}>
+        <Topbar topic={topic} onTopicChange={setTopic} onSubmit={submit} loading={loading} canSubmit={!loading && topic.trim().length >= 3} />
 
-        <section className="card command-card">
-          <div className="command-row single">
-            <button type="button" className="primary" onClick={submit} disabled={!canSubmit}>
-              {loading ? "Running..." : "Run autonomous review"}
-            </button>
-          </div>
-          {data?.job_id ? (
-            <a className="button-link" href={reportUrl(data.job_id)} target="_blank" rel="noreferrer">
-              Download PDF report
-            </a>
-          ) : null}
-          {error ? <p className="error">{error}</p> : null}
-        </section>
+        <CommandActions reportPdfHref={reportHref} error={error} />
 
-        <section className="kpi-grid">
-          <div className="card">
-            <p className="muted">Sources analyzed</p>
-            <p className="kpi-value">{sourcesAnalyzed || data?.papers.length || 0}</p>
-          </div>
-          <div className="card">
-            <p className="muted">Processing stage</p>
-            <p className="kpi-value">{stage}</p>
-          </div>
-          <div className="card">
-            <p className="muted">Confidence</p>
-            <p className="kpi-value">{confidence}</p>
-          </div>
-        </section>
+        <LiveMetricsStrip sourcesAnalyzed={metricSources} stageKey={stage} confidenceRaw={confidence} />
 
-        <section className="grid">
-          <InsightPanel insights={data?.insights} />
-          <div className="card">
-            <h3>Execution events</h3>
-            {!events.length ? (
-              <p className="muted">{loading ? "Thinking..." : "No events yet."}</p>
-            ) : (
-              <ul className="loop-list">
-                {events.map((event) => (
-                  <li key={event.seq}>
-                    <strong>{event.stage}</strong>: {event.message}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </section>
+        <WorkspaceTabs active={tab} onChange={setTab} />
 
-        <section className="card">
-          <GraphView nodes={data?.graph_nodes ?? []} edges={data?.graph_edges ?? []} onSelectNode={setSelectedNode} />
-          {selectedNode ? (
-            <div className="related-papers">
-              <h4>Related papers</h4>
-              {relatedPapers.length ? (
-                <ul>
-                  {relatedPapers.map((paper) => (
-                    <li key={paper.id}>
-                      <a href={paper.url} target="_blank" rel="noreferrer">
-                        {paper.title}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="muted">No related papers found for this node.</p>
-              )}
+        {tab === "overview" ? (
+          <section className="workspace-panel" aria-label="Overview">
+            {loading && !events.length ? <div className="skeleton skeleton--hero" aria-hidden /> : null}
+            <div className="grid">
+              <InsightPanel insights={data?.insights} />
+              <ExecutionLogSection events={events} loading={loading} />
             </div>
-          ) : null}
-        </section>
+          </section>
+        ) : null}
 
-        <PaperTable papers={data?.papers} />
-        <section className="card">
-          <h3>Report preview</h3>
-          <h4>Abstract</h4>
-          <p>{reportPreview.abstract || "Run research to generate a report preview."}</p>
-          <h4>Key findings</h4>
-          <p>{reportPreview.findings || "No findings yet."}</p>
-          <h4>Methodology summary</h4>
-          <p>{reportPreview.methods || "No methodology summary yet."}</p>
-          {data?.report_markdown ? (
-            <button type="button" onClick={() => navigator.clipboard.writeText(data.report_markdown)}>
-              Copy text
-            </button>
-          ) : null}
-        </section>
+        {tab === "sources" ? (
+          <section className="workspace-panel" aria-label="Sources">
+            <PaperTable papers={data?.papers} />
+          </section>
+        ) : null}
+
+        {tab === "graph" ? (
+          <section className="workspace-panel" aria-label="Graph">
+            <GraphSection
+              nodes={data?.graph_nodes ?? []}
+              edges={data?.graph_edges ?? []}
+              papers={data?.papers ?? []}
+              selectedNode={selectedNode}
+              onSelectNode={setSelectedNode}
+            />
+          </section>
+        ) : null}
+
+        {tab === "report" ? (
+          <section className="workspace-panel" aria-label="Report">
+            <ReportSection
+              reportMarkdown={data?.report_markdown}
+              onCopyFull={() => {
+                if (data?.report_markdown) void navigator.clipboard.writeText(data.report_markdown);
+              }}
+            />
+          </section>
+        ) : null}
       </main>
 
+      {narrowRail ? (
+        <>
+          <button type="button" className="rail-toggle" onClick={() => setDrawerOpen(true)} aria-expanded={drawerOpen} aria-controls="session-rail">
+            Session
+          </button>
+          {drawerOpen ? <div className="rail-backdrop" aria-hidden onClick={() => setDrawerOpen(false)} /> : null}
+        </>
+      ) : null}
+
       <RightPanel
+        id="session-rail"
         data={data}
         loading={loading}
-        reportLink={data?.job_id ? reportUrl(data.job_id) : null}
+        reportLink={reportHref}
         stage={stage}
-        sourcesAnalyzed={sourcesAnalyzed || data?.papers.length || 0}
+        sourcesAnalyzed={metricSources}
         confidence={confidence}
+        floating={narrowRail}
+        drawerOpen={drawerOpen}
+        onDrawerClose={() => setDrawerOpen(false)}
       />
     </>
   );

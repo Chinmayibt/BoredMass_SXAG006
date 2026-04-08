@@ -1,120 +1,139 @@
-import React from "react";
+import React, { useMemo, useState } from "react";
 import { Insights } from "../services/api";
 
 type Props = {
   insights?: Insights;
 };
 
+type TabId = "trends" | "gaps" | "conflicts" | "methods" | "emerging" | "papers";
+
 export default function InsightPanel({ insights }: Props) {
-  if (!insights) {
+  const [tab, setTab] = useState<TabId>("trends");
+
+  const sections = useMemo(() => {
+    if (!insights) return null;
+    return {
+      trends:
+        insights.trend_items?.length
+          ? insights.trend_items
+          : insights.trends.map((text) => ({ text, supporting_papers: [] })),
+      gaps:
+        insights.gap_items?.length
+          ? insights.gap_items
+          : insights.gaps.map((text) => ({ text, supporting_papers: [] })),
+      conflicts:
+        insights.contradiction_items?.length
+          ? insights.contradiction_items
+          : insights.contradictions.map((text) => ({ text, supporting_papers: [] })),
+    };
+  }, [insights]);
+
+  if (!insights || !sections) {
     return (
-      <div className="card">
+      <div className="card insight-panel">
         <h3>Insights</h3>
         <p className="muted">Run research to view trends, gaps, and key papers.</p>
       </div>
     );
   }
 
-  const sections = [
-    {
-      label: "Trends",
-      items: insights.trend_items?.length
-        ? insights.trend_items
-        : insights.trends.map((text) => ({ text, supporting_papers: [] })),
-    },
-    {
-      label: "Research gaps",
-      items: insights.gap_items?.length
-        ? insights.gap_items
-        : insights.gaps.map((text) => ({ text, supporting_papers: [] })),
-    },
-    {
-      label: "Conflicting findings",
-      items: insights.contradiction_items?.length
-        ? insights.contradiction_items
-        : insights.contradictions.map((text) => ({ text, supporting_papers: [] })),
-    },
+  const tabs: { id: TabId; label: string }[] = [
+    { id: "trends", label: "Trends" },
+    { id: "gaps", label: "Gaps" },
+    { id: "conflicts", label: "Conflicts" },
+    { id: "methods", label: "Methods" },
+    { id: "emerging", label: "Emerging" },
+    { id: "papers", label: "Key papers" },
   ];
 
-  return (
-    <div className="card">
-      <h3>Insights</h3>
-      <div className="insight-grid">
-        {sections.map((section) => (
-          <section key={section.label} className="insight-block">
-            <h4>{section.label}</h4>
-            {!section.items.length ? (
-              <p className="muted">No items</p>
-            ) : (
-              <ul>
-                {section.items.map((item, i) => (
-                  <li key={`${section.label}-${i}`}>
-                    <div>{item.text}</div>
-                    {item.supporting_papers?.length ? (
-                      <p className="muted">
-                        Sources:{" "}
-                        {item.supporting_papers.map((sp, idx) => (
-                          <React.Fragment key={`${sp.paper_id}-${idx}`}>
-                            {sp.url ? (
-                              <a href={sp.url} target="_blank" rel="noreferrer">
-                                {sp.title || sp.paper_id}
-                              </a>
-                            ) : (
-                              <span>{sp.title || sp.paper_id}</span>
-                            )}
-                            {idx < item.supporting_papers.length - 1 ? ", " : ""}
-                          </React.Fragment>
-                        ))}
-                      </p>
-                    ) : null}
-                  </li>
+  const renderStatements = (items: typeof sections.trends) => (
+    <ul className="insight-statement-list">
+      {!items.length ? (
+        <li className="muted">No items</li>
+      ) : (
+        items.map((item, i) => (
+          <li key={i} className="insight-statement">
+            <div>{item.text}</div>
+            {item.supporting_papers?.length ? (
+              <p className="muted insight-sources">
+                Sources:{" "}
+                {item.supporting_papers.map((sp, idx) => (
+                  <span key={`${sp.paper_id}-${idx}`}>
+                    {sp.url ? (
+                      <a href={sp.url} target="_blank" rel="noreferrer">
+                        {sp.title || sp.paper_id}
+                      </a>
+                    ) : (
+                      <span>{sp.title || sp.paper_id}</span>
+                    )}
+                    {idx < (item.supporting_papers?.length ?? 0) - 1 ? ", " : ""}
+                  </span>
                 ))}
-              </ul>
-            )}
-          </section>
+              </p>
+            ) : null}
+          </li>
+        ))
+      )}
+    </ul>
+  );
+
+  return (
+    <div className="card insight-panel">
+      <h3>Insights</h3>
+      <div className="insight-tabs" role="tablist" aria-label="Insight categories">
+        {tabs.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            role="tab"
+            aria-selected={tab === t.id}
+            className={`insight-tab ${tab === t.id ? "active" : ""}`}
+            onClick={() => setTab(t.id)}
+          >
+            {t.label}
+          </button>
         ))}
       </div>
-      <section className="insight-block">
-        <h4>Key papers</h4>
-        {!insights.key_papers.length ? (
-          <p className="muted">No highlighted papers yet.</p>
-        ) : (
-          <ul>
-            {insights.key_papers.map((paper, i) => (
-              <li key={`paper-${i}`}>
-                <a href={paper.url} target="_blank" rel="noreferrer">
-                  {paper.title}
-                </a>
-                <p className="muted">{paper.why_important}</p>
-              </li>
-            ))}
+
+      <div className="insight-tab-panel" role="tabpanel">
+        {tab === "trends" && renderStatements(sections.trends)}
+        {tab === "gaps" && renderStatements(sections.gaps)}
+        {tab === "conflicts" && renderStatements(sections.conflicts)}
+        {tab === "methods" && (
+          <ul className="insight-chip-list">
+            {insights.methodologies?.length ? (
+              insights.methodologies.map((item, idx) => <li key={`m-${idx}`}>{item}</li>)
+            ) : (
+              <li className="muted">No methodology signals yet.</li>
+            )}
           </ul>
         )}
-      </section>
-      <section className="insight-block">
-        <h4>Most used methodologies</h4>
-        {insights.methodologies?.length ? (
-          <ul>
-            {insights.methodologies.map((item, idx) => (
-              <li key={`method-${idx}`}>{item}</li>
-            ))}
+        {tab === "emerging" && (
+          <ul className="insight-chip-list">
+            {insights.emerging_approaches?.length ? (
+              insights.emerging_approaches.map((item, idx) => <li key={`e-${idx}`}>{item}</li>)
+            ) : (
+              <li className="muted">No emerging approach signals yet.</li>
+            )}
           </ul>
-        ) : (
-          <p className="muted">No methodology signals yet.</p>
         )}
-      </section>
-      <section className="insight-block">
-        <h4>Emerging approaches</h4>
-        {insights.emerging_approaches?.length ? (
-          <ul>
-            {insights.emerging_approaches.map((item, idx) => (
-              <li key={`emerge-${idx}`}>{item}</li>
-            ))}
+        {tab === "papers" && (
+          <ul className="insight-statement-list">
+            {!insights.key_papers.length ? (
+              <li className="muted">No highlighted papers yet.</li>
+            ) : (
+              insights.key_papers.map((paper, i) => (
+                <li key={`paper-${i}`}>
+                  <a href={paper.url} target="_blank" rel="noreferrer">
+                    {paper.title}
+                  </a>
+                  <p className="muted">{paper.why_important}</p>
+                </li>
+              ))
+            )}
           </ul>
-        ) : (
-          <p className="muted">No emerging approach signals yet.</p>
         )}
-      </section>
+      </div>
     </div>
   );
 }

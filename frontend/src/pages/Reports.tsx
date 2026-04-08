@@ -1,4 +1,5 @@
-import React, { useMemo } from "react";
+import React from "react";
+import { Link } from "react-router-dom";
 import { reportUrl } from "../services/api";
 
 type StoredReport = {
@@ -7,34 +8,44 @@ type StoredReport = {
   finishedAt: string;
 };
 
+function readStoredReports(): StoredReport[] {
+  const raw = window.localStorage.getItem("researchReports");
+  if (!raw) return [];
+  try {
+    return JSON.parse(raw) as StoredReport[];
+  } catch {
+    return [];
+  }
+}
+
 export default function Reports() {
-  const reports = useMemo(() => {
-    const raw = window.localStorage.getItem("researchReports");
-    if (!raw) return [] as StoredReport[];
-    try {
-      return JSON.parse(raw) as StoredReport[];
-    } catch {
-      return [] as StoredReport[];
-    }
-  }, []);
+  const reports = readStoredReports();
 
   return (
-    <main className="workspace">
-      <section className="card">
-        <h2>Reports</h2>
+    <main className="workspace page-secondary">
+      <header className="page-header">
+        <h1>Reports</h1>
+        <p className="muted">Saved runs on this device. Open a run in the workspace or download the PDF.</p>
+      </header>
+      <section className="card card--elevated">
         {!reports.length ? (
-          <p className="muted">No reports yet. Run a research topic to generate one.</p>
+          <p className="muted empty-state">No reports yet. Run a topic from Home to create one.</p>
         ) : (
           <ul className="report-list">
             {reports.map((report) => (
               <li key={report.jobId} className="report-item">
                 <div>
-                  <p>{report.topic}</p>
+                  <p className="report-item-title">{report.topic}</p>
                   <p className="muted">{new Date(report.finishedAt).toLocaleString()}</p>
                 </div>
-                <a className="button-link" href={reportUrl(report.jobId)} target="_blank" rel="noreferrer">
-                  Download PDF
-                </a>
+                <div className="report-item-actions">
+                  <Link className="button-link" to={`/?jobId=${encodeURIComponent(report.jobId)}&tab=overview`}>
+                    Open in workspace
+                  </Link>
+                  <a className="button-link" href={reportUrl(report.jobId)} target="_blank" rel="noreferrer">
+                    Download PDF
+                  </a>
+                </div>
               </li>
             ))}
           </ul>

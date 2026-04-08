@@ -19,7 +19,7 @@ export type PipelineEvent = {
   seq: number;
   ts: string;
   stage: string;
-  level: "info" | "warn";
+  level: string;
   message: string;
   meta?: Record<string, unknown>;
 };
@@ -139,17 +139,27 @@ async function fetchJobStatus(jobId: string): Promise<JobStatusResponse> {
   return res.json();
 }
 
-async function fetchJobResults(jobId: string): Promise<PipelineResult> {
+export async function fetchPipelineResult(jobId: string): Promise<RunResearchResponse> {
   const res = await fetch(`${API_BASE}/v2/research/jobs/${jobId}/results`);
   if (!res.ok) {
     throw new Error(`Failed to fetch job results: ${await res.text()}`);
   }
-  return res.json();
+  const result = (await res.json()) as PipelineResult;
+  return {
+    topic: result.topic,
+    papers: result.papers,
+    graph_nodes: result.graph_nodes ?? [],
+    graph_edges: result.graph_edges ?? [],
+    insights: result.insights,
+    report_markdown: result.report.markdown,
+    job_id: jobId,
+  };
 }
 
 type RunResearchOptions = {
   onEvent?: (event: PipelineEvent) => void;
   onProgress?: (progress: Record<string, string>) => void;
+  signal?: AbortSignal;
 };
 
 function createEventStream(jobId: string, onEvent?: (event: PipelineEvent) => void) {
@@ -166,11 +176,18 @@ function createEventStream(jobId: string, onEvent?: (event: PipelineEvent) => vo
 }
 
 export async function runResearch(payload: RunRequest, opts: RunResearchOptions = {}): Promise<RunResearchResponse> {
+  if (opts.signal?.aborted) {
+    throw new DOMException("Aborted", "AbortError");
+  }
   const job = await createResearchJob(payload);
   const stream = createEventStream(job.job_id, opts.onEvent);
 
   let status: JobStatusResponse | null = null;
   for (let i = 0; i < 240; i++) {
+    if (opts.signal?.aborted) {
+      stream.close();
+      throw new DOMException("Aborted", "AbortError");
+    }
     status = await fetchJobStatus(job.job_id);
     opts.onProgress?.(status.progress ?? {});
     if (status.status === "failed") {
@@ -188,18 +205,10 @@ export async function runResearch(payload: RunRequest, opts: RunResearchOptions 
     throw new Error("Timed out waiting for research job");
   }
 
-  const result = await fetchJobResults(job.job_id);
+  const out = await fetchPipelineResult(job.job_id);
   stream.close();
 
-  return {
-    topic: result.topic,
-    papers: result.papers,
-    graph_nodes: result.graph_nodes ?? [],
-    graph_edges: result.graph_edges ?? [],
-    insights: result.insights,
-    report_markdown: result.report.markdown,
-    job_id: job.job_id,
-  };
+  return out;
 }
 
 export function reportUrl(jobId: string) {

@@ -5,6 +5,7 @@ export default function PaperTable({ papers }: { papers?: Paper[] }) {
   const [query, setQuery] = useState("");
   const [source, setSource] = useState("all");
   const [sort, setSort] = useState<"desc" | "asc">("desc");
+  const [toast, setToast] = useState("");
 
   const rows = useMemo(() => {
     const list = papers ?? [];
@@ -27,10 +28,21 @@ export default function PaperTable({ papers }: { papers?: Paper[] }) {
     return sentence ? `${sentence}.` : "No key sentence available.";
   };
 
+  const copyKeyIdea = async (paper: Paper) => {
+    const text = highlightIdea(paper);
+    try {
+      await navigator.clipboard.writeText(text);
+      setToast(`Copied key idea: ${paper.title.slice(0, 40)}…`);
+    } catch {
+      setToast("Could not copy — select and copy manually.");
+    }
+    window.setTimeout(() => setToast(""), 3200);
+  };
+
   return (
-    <div className="card">
+    <div className="card sources-card">
       <h3>Sources</h3>
-      <div className="table-toolbar">
+      <div className="sources-toolbar">
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -47,23 +59,35 @@ export default function PaperTable({ papers }: { papers?: Paper[] }) {
           Score: {sort === "desc" ? "High to low" : "Low to high"}
         </button>
       </div>
+      <p className="sr-only" aria-live="polite">
+        {toast}
+      </p>
+      {toast ? (
+        <p className="toast-inline" aria-hidden="true">
+          {toast}
+        </p>
+      ) : null}
       {!papers?.length ? (
-        <p>No papers yet.</p>
+        <p className="muted">No papers yet.</p>
       ) : (
         <div className="paper-grid">
           {rows.map((p, i) => (
             <article key={`${p.id}-${i}`} className="paper-card">
               <h4>{p.title}</h4>
               <p className="muted">
-                {(p.authors || []).slice(0, 3).join(", ") || "Unknown authors"} | {p.year ?? "-"} | {p.citation_count} citations
+                {(p.authors || []).slice(0, 3).join(", ") || "Unknown authors"} | {p.year ?? "-"} |{" "}
+                {p.citation_count} citations
               </p>
               <p className="paper-summary">{(p.abstract || "No summary available.").slice(0, 220)}</p>
+              <p className="paper-key-idea muted" id={`key-idea-${p.id}`} hidden>
+                {highlightIdea(p)}
+              </p>
               <div className="paper-actions">
                 <a href={p.url} target="_blank" rel="noreferrer" className="button-link">
-                  View Paper
+                  View paper
                 </a>
-                <button type="button" onClick={() => window.alert(highlightIdea(p))}>
-                  Highlight key idea
+                <button type="button" onClick={() => copyKeyIdea(p)} aria-describedby={`key-idea-${p.id}`}>
+                  Copy key idea
                 </button>
               </div>
             </article>
