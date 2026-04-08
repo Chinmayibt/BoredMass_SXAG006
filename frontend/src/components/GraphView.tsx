@@ -1,46 +1,37 @@
-import React, { useCallback, useEffect, useMemo } from "react";
-import ReactFlow, { Background, Controls, Edge, MiniMap, Node, useEdgesState, useNodesState } from "reactflow";
+import React, { useCallback, useEffect, useMemo, useRef } from "react";
+import ReactFlow, {
+  Background,
+  Controls,
+  Edge,
+  MiniMap,
+  Node,
+  ReactFlowInstance,
+  useEdgesState,
+  useNodesState,
+} from "reactflow";
 import "reactflow/dist/style.css";
-import { GraphEdge, GraphNode } from "../services/api";
 import { layoutWithDagre } from "../lib/graphLayout";
-import PaperGraphNode, { PaperNodeData } from "./PaperGraphNode";
+import ClusterGraphNode, { ClusterNodeData } from "./ClusterGraphNode";
+import PaperGraphNode from "./PaperGraphNode";
 
-const nodeTypes = { paper: PaperGraphNode };
+const nodeTypes = { paper: PaperGraphNode, cluster: ClusterGraphNode };
 
 type Props = {
-  nodes: GraphNode[];
-  edges: GraphEdge[];
-  onSelectNode?: (nodeId: string) => void;
+  nodes: Node[];
+  edges: Edge[];
+  onSelectPaper?: (paperId: string) => void;
+  onToggleCluster?: (clusterId: number) => void;
+  fitViewSignal?: number;
 };
 
-function truncateLabel(text: string, max = 42): string {
-  if (text.length <= max) return text;
-  return `${text.slice(0, max - 1)}…`;
-}
+export default function GraphView({ nodes, edges, onSelectPaper, onToggleCluster, fitViewSignal }: Props) {
+  const rfRef = useRef<ReactFlowInstance | null>(null);
 
-export default function GraphView({ nodes, edges, onSelectNode }: Props) {
   const initial = useMemo(() => {
     if (!nodes.length) {
       return { nodes: [] as Node[], edges: [] as Edge[] };
     }
-    const rfNodes: Node<PaperNodeData>[] = nodes.map((n) => ({
-      id: n.id,
-      type: "paper",
-      position: { x: 0, y: 0 },
-      data: {
-        label: truncateLabel(n.label),
-        fullTitle: n.label,
-        summary: `${n.year ?? "n/a"} · relevance ${n.score.toFixed(2)}`,
-        cluster: n.cluster,
-      },
-    }));
-    const rfEdges: Edge[] = edges.map((e, i) => ({
-      id: `e-${i}-${e.source}-${e.target}`,
-      source: e.source,
-      target: e.target,
-      animated: e.edge_type === "similarity",
-    }));
-    return layoutWithDagre(rfNodes, rfEdges, "TB");
+    return layoutWithDagre(nodes, edges, "TB");
   }, [nodes, edges]);
 
   const [rfNodes, setNodes, onNodesChange] = useNodesState(initial.nodes);
@@ -51,27 +42,36 @@ export default function GraphView({ nodes, edges, onSelectNode }: Props) {
     setEdges(initial.edges);
   }, [initial, setNodes, setEdges]);
 
+  useEffect(() => {
+    if (!initial.nodes.length || fitViewSignal === undefined || fitViewSignal <= 0) return;
+    const t = window.setTimeout(() => {
+      rfRef.current?.fitView({ padding: 0.15, duration: 320 });
+    }, 50);
+    return () => window.clearTimeout(t);
+  }, [fitViewSignal, initial.nodes.length]);
+
   const onNodeClick = useCallback(
     (_: React.MouseEvent, node: Node) => {
-      onSelectNode?.(node.id);
+      if (node.type === "cluster") {
+        const cid = (node.data as ClusterNodeData).clusterId;
+        if (cid !== undefined) onToggleCluster?.(cid);
+        return;
+      }
+      onSelectPaper?.(node.id);
     },
-    [onSelectNode]
+    [onSelectPaper, onToggleCluster]
   );
 
   if (!nodes.length) {
     return (
       <div className="graph-empty">
-        <p className="muted">No graph data yet. Run research to generate a knowledge graph.</p>
+        <p className="muted">No graph data for current filters. Adjust filters or run research to populate the map.</p>
       </div>
     );
   }
 
   return (
-    <div className="graph-wrap">
-      <div className="graph-header">
-        <h4>Knowledge graph</h4>
-        <p className="muted">Papers as nodes; edges show similarity and citation links. Pan and zoom to explore.</p>
-      </div>
+    <div className="graph-flow-host">
       <ReactFlow
         nodes={rfNodes}
         edges={rfEdges}
@@ -79,9 +79,13 @@ export default function GraphView({ nodes, edges, onSelectNode }: Props) {
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onNodeClick={onNodeClick}
-        fitView
-        minZoom={0.2}
-        maxZoom={1.5}
+        onInit={(inst) => {
+          rfRef.current = inst;
+          inst.fitView({ padding: 0.12 });
+        }}
+        minZoom={0.15}
+        maxZoom={1.6}
+        proOptions={{ hideAttribution: true }}
       >
         <Background gap={18} />
         <Controls />

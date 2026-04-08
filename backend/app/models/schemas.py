@@ -36,6 +36,7 @@ class GraphNode(BaseModel):
     year: int | None = None
     score: float = 0.0
     cluster: int = 0
+    cluster_label: str | None = None
 
 
 class GraphEdge(BaseModel):

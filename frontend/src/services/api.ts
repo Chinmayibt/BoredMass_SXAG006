@@ -30,6 +30,7 @@ export type GraphNode = {
   year: number | null;
   score: number;
   cluster: number;
+  cluster_label?: string;
 };
 
 export type GraphEdge = {
@@ -43,6 +44,7 @@ export type InsightKeyPaper = {
   title: string;
   why_important: string;
   url: string;
+  paper_id?: string;
 };
 
 export type InsightEvidence = {

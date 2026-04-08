@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import math
+from collections import Counter
+
+from sklearn.cluster import KMeans
 
 from app.core.config import get_settings
 from app.models.pipeline import GraphEdgeRecord, GraphNodeRecord
@@ -18,9 +21,10 @@ def graph_builder_node(state: PipelineStateDict) -> PipelineStateDict:
 
     embeddings = encode_texts([(p.title + " " + p.abstract).strip() for p in papers])
     sim = embeddings @ embeddings.T
+    sim_threshold = 0.52
+    n_papers = len(papers)
+    min_top_k = 1 if n_papers > 10 else (2 if n_papers > 2 else 1)
     edge_map: dict[tuple[str, str, str], GraphEdgeRecord] = {}
-    sim_threshold = 0.45
-    min_top_k = 2 if len(papers) > 2 else 1
 
     for i in range(len(papers)):
         candidates: list[tuple[int, float]] = []
@@ -57,10 +61,40 @@ def graph_builder_node(state: PipelineStateDict) -> PipelineStateDict:
                 edge_type="citation",
             )
 
+    if n_papers <= 1:
+        labels = [0]
+    else:
+        n_clusters = max(2, min(10, int(round(math.sqrt(n_papers)))))
+        n_clusters = min(n_clusters, n_papers)
+        km = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
+        labels = [int(x) for x in km.fit_predict(embeddings)]
+
+    topic_counts: dict[int, Counter[str]] = {}
+    for idx, p in enumerate(papers):
+        lab = labels[idx]
+        topic_counts.setdefault(lab, Counter())
+        for top in p.topics:
+            t = (top or "").strip()
+            if t:
+                topic_counts[lab][t] += 1
+
+    cluster_labels: dict[int, str] = {}
+    for lab in sorted(set(labels)):
+        ctr = topic_counts.get(lab, Counter())
+        cluster_labels[lab] = ctr.most_common(1)[0][0] if ctr else f"Theme {lab + 1}"
+
     graph_nodes = [
-        GraphNodeRecord(id=p.id, label=p.title, year=p.year, score=p.relevance_score, cluster=i % 6)
+        GraphNodeRecord(
+            id=p.id,
+            label=p.title,
+            year=p.year,
+            score=p.relevance_score,
+            cluster=labels[i],
+            cluster_label=cluster_labels.get(labels[i]),
+        )
         for i, p in enumerate(papers)
     ]
+
     graph_edges = list(edge_map.values())
 
     settings = get_settings()

@@ -94,6 +94,7 @@ export default function Home() {
               nodes={data?.graph_nodes ?? []}
               edges={data?.graph_edges ?? []}
               papers={data?.papers ?? []}
+              insights={data?.insights}
               selectedNode={selectedNode}
               onSelectNode={setSelectedNode}
             />

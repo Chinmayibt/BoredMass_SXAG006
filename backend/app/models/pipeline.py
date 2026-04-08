@@ -62,6 +62,7 @@ class GraphNodeRecord(BaseModel):
     year: int | None = None
     score: float = 0.0
     cluster: int = 0
+    cluster_label: str | None = None
 
 
 class GraphEdgeRecord(BaseModel):
