@@ -1,11 +1,13 @@
 import React from "react";
 import { RESEARCH_AGENT_BASE } from "../services/researchAgentApi";
+import { useDocumentTitle } from "../hooks/useDocumentTitle";
 
 function normalizeApiBase(u: string): string {
   return u.replace(/\/$/, "");
 }
 
 export default function Settings() {
+  useDocumentTitle("Mantis · Settings");
   const apiBase = import.meta.env.VITE_API_BASE ?? "http://localhost:8000";
   const researchRaw = import.meta.env.VITE_RESEARCH_AGENT_BASE;
 
@@ -36,7 +38,7 @@ export default function Settings() {
       ) : null}
 
       <section className="card card--elevated">
-        <p className="muted">Main ScholAR API (build-time)</p>
+        <p className="muted">Main API — research pipeline (build-time)</p>
         <p>
           <code className="settings-code">{String(apiBase)}</code>
         </p>

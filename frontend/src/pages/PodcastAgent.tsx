@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import ReactMarkdown from "react-markdown";
+import { useDocumentTitle } from "../hooks/useDocumentTitle";
 import {
   podcastAudioSrc,
   postGeneratePodcast,
@@ -7,6 +8,7 @@ import {
 } from "../services/researchAgentApi";
 
 export default function PodcastAgent() {
+  useDocumentTitle("Mantis · Podcast agent");
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

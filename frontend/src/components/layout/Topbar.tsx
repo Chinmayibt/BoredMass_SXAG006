@@ -12,7 +12,7 @@ export default function Topbar({ topic, onTopicChange, onSubmit, loading, canSub
   return (
     <header className="topbar">
       <div>
-        <p className="muted">Autonomous Research AI Workspace</p>
+        <p className="muted">Mantis · Autonomous research workspace</p>
         <h1>Enter a topic, AI does the rest</h1>
       </div>
       <div className="topbar-actions">

@@ -85,6 +85,7 @@ async def run_podcast_pipeline(pdf_path: str, work_dir: str = ".") -> dict:
                 seen.add(chunk)
 
         context = "\n\n".join(unique_chunks)
+        context = context[:1200]
 
         print("\n--- FINAL CONTEXT SENT TO LLM ---\n")
         print(context[:800])

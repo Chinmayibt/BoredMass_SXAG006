@@ -10,6 +10,7 @@ import ReportSection from "../components/workspace/ReportSection";
 import RightPanel from "../components/layout/RightPanel";
 import Topbar from "../components/layout/Topbar";
 import WorkspaceTabs, { WorkspaceTabId } from "../components/workspace/WorkspaceTabs";
+import { useDocumentTitle } from "../hooks/useDocumentTitle";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { useResearchRun } from "../hooks/useResearchRun";
 import { reportUrl } from "../services/api";
@@ -20,6 +21,7 @@ function validTab(t: string | null): WorkspaceTabId {
 }
 
 export default function Home() {
+  useDocumentTitle("Mantis · Workspace");
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);

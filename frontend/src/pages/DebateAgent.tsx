@@ -1,8 +1,10 @@
 import React, { useState } from "react";
 import ReactMarkdown from "react-markdown";
+import { useDocumentTitle } from "../hooks/useDocumentTitle";
 import { postDebatePdf, type DebateResponse } from "../services/researchAgentApi";
 
 export default function DebateAgent() {
+  useDocumentTitle("Mantis · Debate agent");
   const [fileA, setFileA] = useState<File | null>(null);
   const [fileB, setFileB] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);

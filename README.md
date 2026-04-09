@@ -22,16 +22,18 @@ API endpoints:
 - `POST /research/run`
 - `GET /research/report/{job_id}.pdf`
 
-## Frontend
+## Frontend (Mantis UI)
 
 1. Install and run:
    - `cd frontend`
    - `npm install`
    - `npm run dev`
 
+The app opens at `/` (landing). The research workspace is at **`/workspace`**.
+
 Optional env (see `frontend/.env.example`):
 
-- `VITE_API_BASE=http://localhost:8000` (main ScholAR API, `backend/`)
+- `VITE_API_BASE=http://localhost:8000` (main research API, `backend/`)
 - `VITE_RESEARCH_AGENT_BASE=http://localhost:8001` (Debate / Roadmap / Podcast; `research_agent/` — do not point this at the same URL as `VITE_API_BASE` unless both APIs are merged into one server)
 
 ## Research agent (second API)

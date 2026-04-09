@@ -1,5 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import { useDocumentTitle } from "../hooks/useDocumentTitle";
 import { reportUrl } from "../services/api";
 
 type StoredReport = {
@@ -19,6 +20,7 @@ function readStoredReports(): StoredReport[] {
 }
 
 export default function Reports() {
+  useDocumentTitle("Mantis · Reports");
   const reports = readStoredReports();
 
   return (
@@ -29,7 +31,7 @@ export default function Reports() {
       </header>
       <section className="card card--elevated">
         {!reports.length ? (
-          <p className="muted empty-state">No reports yet. Run a topic from Home to create one.</p>
+          <p className="muted empty-state">No reports yet. Run a topic from the workspace to create one.</p>
         ) : (
           <ul className="report-list">
             {reports.map((report) => (
@@ -39,7 +41,10 @@ export default function Reports() {
                   <p className="muted">{new Date(report.finishedAt).toLocaleString()}</p>
                 </div>
                 <div className="report-item-actions">
-                  <Link className="button-link" to={`/?jobId=${encodeURIComponent(report.jobId)}&tab=overview`}>
+                  <Link
+                    className="button-link"
+                    to={`/workspace?jobId=${encodeURIComponent(report.jobId)}&tab=overview`}
+                  >
                     Open in workspace
                   </Link>
                   <a className="button-link" href={reportUrl(report.jobId)} target="_blank" rel="noreferrer">

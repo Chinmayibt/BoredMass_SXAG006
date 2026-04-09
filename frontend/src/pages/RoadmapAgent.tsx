@@ -1,8 +1,10 @@
 import React, { useState } from "react";
 import ReactMarkdown from "react-markdown";
+import { useDocumentTitle } from "../hooks/useDocumentTitle";
 import { postRoadmapPdf, type RoadmapStep, type RoadmapSuccess } from "../services/researchAgentApi";
 
 export default function RoadmapAgent() {
+  useDocumentTitle("Mantis · Roadmap agent");
   const [topic, setTopic] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
